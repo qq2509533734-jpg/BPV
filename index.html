@@ -64,8 +64,8 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
-    height: 100vh;
-    width: 100vw;
+    height: 100dvh;
+    width: 100dvw;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -900,6 +900,13 @@
     max-height: 70vh;
   }
 }
+  /* 兼容不支持 dvh/dvw 的旧浏览器 */
+  @supports not (height: 100dvh) {
+    body {
+      height: 100vh !important;
+      width: 100vw !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -5196,6 +5203,54 @@ function insertAnchorOnPath(pathId, t) {
     return true;
 }
 
+  // === 移动端视口适配：处理虚拟键盘弹出/收起导致的页面错位 ===
+  (function initViewportFix() {
+    var body = document.body;
+    var lastWindowInnerHeight = window.innerHeight;
+    var resizeTimeout = null;
+
+    function adjustViewport() {
+      var currentInnerH = window.innerHeight;
+      var delta = Math.abs(currentInnerH - lastWindowInnerHeight);
+      if (delta > 80) {
+        var keyboardOpen = currentInnerH < lastWindowInnerH;
+        if (keyboardOpen) {
+          body.classList.add('keyboard-open');
+        } else {
+          body.classList.remove('keyboard-open');
+        }
+        // 重新调整画布大小
+        if (typeof resizeCanvas === 'function') {
+          resizeCanvas();
+        }
+      }
+      lastWindowInnerHeight = currentInnerH;
+    }
+
+    // 监听窗口 resize（移动端键盘弹出/收起会触发）
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(adjustViewport, 50);
+    });
+
+    // 监听所有输入框的焦点事件
+    var allInputs = document.querySelectorAll('input, textarea, select');
+    allInputs.forEach(function(input) {
+      input.addEventListener('focus', function() {
+        setTimeout(adjustViewport, 100);
+        setTimeout(adjustViewport, 250);
+      });
+      input.addEventListener('blur', function() {
+        setTimeout(function() {
+          body.classList.remove('keyboard-open');
+          adjustViewport();
+        }, 100);
+      });
+    });
+
+    // 初始调整
+    adjustViewport();
+  })();
 (function init() {
   initCanvasColorPicker();
   const samples = [
@@ -5208,6 +5263,7 @@ function insertAnchorOnPath(pathId, t) {
   samples.forEach(s => { materials.push({ id:newId(), name:s.name, color:s.color, size:s.size, price:s.price, wuxing:s.wuxing, series: s.series, img:new Image(), remark:s.remark, stock:s.stock }); });
   renderTags(); renderMaterials(); renderPlans(); resizeCanvas();
   initLongPress();
+  initViewportFix();
 })();
 
   
